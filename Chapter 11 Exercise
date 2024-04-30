@@ -1,0 +1,228 @@
+CREATE TABLE acs_2014_2018_stats (
+    geoid text CONSTRAINT geoid_key PRIMARY KEY,
+    county text NOT NULL,
+    st text NOT NULL,
+    pct_travel_60_min numeric(5,2),
+    pct_bachelors_higher numeric(5,2),
+    pct_masters_higher numeric(5,2),
+    median_hh_income integer,
+    CHECK (pct_masters_higher <= pct_bachelors_higher)
+);
+
+**Here we create the table that will house our imported large quantitative dataset that features data from the 2014-2018 ACS Survey**
+
+COPY acs_2014_2018_stats
+FROM 'C:\YourDirectory\acs_2014_2018_stats.csv'
+WITH (FORMAT CSV, HEADER);
+
+**Here we use the COPY command to import the data from the CSV Excel File, and we format the large dataset as a CSV within PostgreSQL**
+
+SELECT * FROM acs_2014_2018_stats;
+
+**Here we use the SELECT command followed by the * metacharacter to display all the rows and columns within the table we just created and imported data into**
+
+SELECT corr(median_hh_income, pct_bachelors_higher)
+    AS bachelors_income_r
+FROM acs_2014_2018_stats;
+
+**Here we use the corr(Y, X) binary aggregate function to discover the relationship between education level and income, income is our dependent variable, and education is our independent variable**
+
+SELECT
+    round(
+      corr(median_hh_income, pct_bachelors_higher)::numeric, 2
+      ) AS bachelors_income_r,
+    round(
+      corr(pct_travel_60_min, median_hh_income)::numeric, 2
+      ) AS income_travel_r,
+    round(
+      corr(pct_travel_60_min, pct_bachelors_higher)::numeric, 2
+      ) AS bachelors_travel_r
+FROM acs_2014_2018_stats;
+
+**Here we use the round() function to round off the decimal values to make the output more readable**
+**We cast the floating-point value that is returned by default to the numeric data type using the :: notation**
+
+SELECT
+    round(
+        regr_slope(median_hh_income, pct_bachelors_higher)::numeric, 2
+        ) AS slope,
+    round(
+        regr_intercept(median_hh_income, pct_bachelors_higher)::numeric, 2
+        ) AS y_intercept
+FROM acs_2014_2018_stats;
+
+**Here we use the median_hh_income and pct_bachelors_higher variables as inputs for both functions**
+**We set the resulting value of the reg_slope(Y, X) function as slope, and the output for the regr_intercept(Y, X) function as y_intercept**
+
+SELECT round(
+        regr_r2(median_hh_income, pct_bachelors_higher)::numeric, 3
+        ) AS r_squared
+FROM acs_2014_2018_stats;
+
+**Here we round off the output to the nearest thousandth place and alias the result to r_squared**
+
+SELECT var_pop(median_hh_income)
+FROM acs_2014_2018_stats;
+
+**Here we use the var_pop() function to calculate the population variance of the median_hh_income column**
+
+SELECT stddev_pop(median_hh_income)
+FROM acs_2014_2018_stats;
+
+**Here we use the stddev() function to calculate the population standard deviation of the median_hh_income column**
+
+CREATE TABLE widget_companies (
+    id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    company text NOT NULL,
+    widget_output integer NOT NULL
+);
+
+**Here we create a new table within the relational database called widget_companies**
+**We set its Primary Key to GENERATED ALWAYS AS IDENTITY and use NOT NULL constraints within its creation**
+
+INSERT INTO widget_companies (company, widget_output)
+VALUES
+    ('Dom Widgets', 125000),
+    ('Ariadne Widget Masters', 143000),
+    ('Saito Widget Co.', 201000),
+    ('Mal Inc.', 133000),
+    ('Dream Widget Inc.', 196000),
+    ('Miles Amalgamated', 620000),
+    ('Arthur Industries', 244000),
+    ('Fischer Worldwide', 201000);
+
+**Here we insert into the newley created table values: company names and how many widgets they create**
+
+SELECT
+    company,
+    widget_output,
+    rank() OVER (ORDER BY widget_output DESC),
+    dense_rank() OVER (ORDER BY widget_output DESC)
+FROM widget_companies
+ORDER BY widget_output DESC;
+
+**We use the rank() and the dense_rank() functions as well as an OVER clause to specify the "window" of rows the functions should operate on**
+**The window is the set of rows relative to the current row**
+
+CREATE TABLE store_sales (
+    store text NOT NULL,
+    category text NOT NULL,
+    unit_sales bigint NOT NULL,
+    CONSTRAINT store_category_key PRIMARY KEY (store, category)
+);
+
+**Here we create a new table named store_sales and set a PRIMARY KEY CONSTRAINT via the column name store_category_key**
+**We also use several NOT NULL constraints in the creation of the table**
+
+INSERT INTO store_sales (store, category, unit_sales)
+VALUES
+    ('Broders', 'Cereal', 1104),
+    ('Wallace', 'Ice Cream', 1863),
+    ('Broders', 'Ice Cream', 2517),
+    ('Cramers', 'Ice Cream', 2112),
+    ('Broders', 'Beer', 641),
+    ('Cramers', 'Cereal', 1003),
+    ('Cramers', 'Beer', 640),
+    ('Wallace', 'Cereal', 980),
+    ('Wallace', 'Beer', 988);
+
+**Here we use the INSERT command to insert into the store_sales table a store's product category and sales for that category**
+
+SELECT
+    category,
+    store,
+    unit_sales,
+    rank() OVER (PARTITION BY category ORDER BY unit_sales DESC)
+FROM store_sales
+ORDER BY category, rank() OVER (PARTITION BY category 
+        ORDER BY unit_sales DESC);
+
+**Here we use a SELECT statement to create a result set showing how each store's sales ranks within each category**
+**We implement a new element by using the PARTITION BY clause within the OVER clause, this tells the program to create rankings one category at a time, using the store's unit sales in descending order**
+
+CREATE TABLE cbp_naics_72_establishments (
+    state_fips text,
+    county_fips text,
+    county text NOT NULL,
+    st text NOT NULL,
+    naics_2017 text NOT NULL,
+    naics_2017_label text NOT NULL,
+    year smallint NOT NULL,
+    establishments integer NOT NULL,
+    CONSTRAINT cbp_fips_key PRIMARY KEY (state_fips, county_fips)
+);
+
+**Here we create a new table within the relational database entitled cbp_naics_72_establishments**
+**This table is used to contain descriptive information about a county along with the number of business establishments that fall under code 72 of the NAICS(North Amercian Industry Classification System)**
+
+COPY cbp_naics_72_establishments
+FROM 'C:\YourDirectory\cbp_naics_72_establishments.csv'
+WITH (FORMAT CSV, HEADER);
+
+**Here we use the COPY command to insert the large dataset into the newley created table**
+**We set the Excel CSV file as a CSV format within the table**
+
+SELECT *
+FROM cbp_naics_72_establishments
+ORDER BY state_fips, county_fips
+LIMIT 5;
+
+**Here we use the SELECT statement with the * metacharacter to display all the rows and columns within the table**
+**We use the ORDER BY command to order the results by state and county fips**
+**We use the LIMIT command to limit the results to 5 decimal places**
+
+SELECT
+    cbp.county,
+    cbp.st,
+    cbp.establishments,
+    pop.pop_est_2018,
+    round( (cbp.establishments::numeric / pop.pop_est_2018) * 1000, 1 )
+        AS estabs_per_1000 
+FROM cbp_naics_72_establishments cbp JOIN us_counties_pop_est_2019 pop 
+    ON cbp.state_fips = pop.state_fips 
+    AND cbp.county_fips = pop.county_fips 
+WHERE pop.pop_est_2018 >= 50000 
+ORDER BY cbp.establishments::numeric / pop.pop_est_2018 DESC;
+
+**Here we use the round() function to round off the output to the nearest tenth and give the calculated column an alias of estabs_per_1000**
+**We use a WHERE clause to limit our results to counties with 50,000 or more people**
+
+CREATE TABLE us_exports (
+    year smallint,
+    month smallint,
+    citrus_export_value bigint,	
+    soybeans_export_value bigint
+);
+
+**Here we create a new table entitled us_exports, which will display the monthly dollar value of US exports of citrus fruit and soybeans**
+
+COPY us_exports
+FROM 'C:\YourDirectory\us_exports.csv'
+WITH (FORMAT CSV, HEADER);
+
+**Here we insert the data from a large quantitative dataset using the COPY command, and we format the dataset as a CSV file within Postgre SQL**
+
+SELECT year, month, citrus_export_value
+FROM us_exports
+ORDER BY year, month;
+
+**Here we use a SELECT statement to select the year, month, and citrus_export_value from the table**
+**We then use the ORDER BY command to order the table results by year and month**
+
+SELECT year, month, citrus_export_value,
+    round(   
+       avg(citrus_export_value) 
+            OVER(ORDER BY year, month 
+                 ROWS BETWEEN 11 PRECEDING AND CURRENT ROW), 0)
+       AS twelve_month_avg
+FROM us_exports
+ORDER BY year, month;
+
+**Here we calculate the rolling average of the values in the citrus_export_value column by using the avg() function to calculate the averages**
+**We then use an OVER clause that sorts the data for the period we plan to average via an ORDER BY clause, and the number of rows to average via the keywords ROWS BETWEEN 11 PRECEDING AND CURRENT ROW**
+**This tells PostgreSQL to limit the window to the current row and the 11 rows before it**
+**Finally we use the round() function to limit the output to whole numbers**
+
+**This was a fun project all together, feel free to give it a try and test out your PostgreSQL skills :)**
+**Sources used Chapter 11 Exercise from the book "Practical SQL: A Beginner's Guide To Storytelling With Data", Author: Anthony DeBarros**
+
